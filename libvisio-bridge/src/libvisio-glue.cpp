@@ -1,3 +1,6 @@
+#include <cstdlib>
+#include <cstring>
+
 #include <libvisio/libvisio.h>
 #include <librevenge/librevenge.h>
 #include <librevenge-stream/librevenge-stream.h>
@@ -8,6 +11,7 @@
 using librevenge::RVNGDrawingInterface;
 using librevenge::RVNGFileStream;
 using librevenge::RVNGInputStream;
+using librevenge::RVNGProperty;
 using librevenge::RVNGPropertyList;
 using librevenge::RVNGString;
 using libvisio::VisioDocument;
@@ -121,8 +125,8 @@ visio_glue_document_parse_stencils(visio_glue_input_stream *stream, visio_glue_p
 }
 
 extern "C" visio_glue_property_list_iterator *
-visio_glue_property_list_iterate(visio_glue_property_list *list) {
-    auto prop_list = reinterpret_cast<RVNGPropertyList *>(list);
+visio_glue_property_list_iterate(const visio_glue_property_list *list) {
+    auto prop_list = reinterpret_cast<const RVNGPropertyList *>(list);
     auto iterator = new RVNGPropertyList::Iter(*prop_list);
     iterator->rewind();
     return reinterpret_cast<visio_glue_property_list_iterator *>(iterator);
@@ -148,3 +152,35 @@ visio_glue_property_list_iterator_key(visio_glue_property_list_iterator *iterato
     return prop_iterator->key();
 }
 
+extern "C" visio_glue_property_value
+visio_glue_property_list_iterator_value(visio_glue_property_list_iterator *iterator) {
+    auto prop_iterator = reinterpret_cast<RVNGPropertyList::Iter *>(iterator);
+    const RVNGProperty *prop = (*prop_iterator)();
+    if (prop == nullptr) {
+        auto value = visio_glue_property_value {
+            value: nullptr
+        };
+        return value;
+    }
+    RVNGString str = prop->getStr();
+    const char *cstr = str.cstr();
+    char *dup_cstr = (cstr == nullptr)
+        ? nullptr
+        : strdup(cstr);
+    auto value = visio_glue_property_value {
+        value: dup_cstr
+    };
+    return value;
+}
+
+extern "C" void
+visio_glue_property_value_free(visio_glue_property_value *value) {
+    if (value == nullptr) {
+        return;
+    }
+    if (value->value == nullptr) {
+        return;
+    }
+    free(value->value);
+    value->value = nullptr;
+}

@@ -1,0 +1,7 @@
+[package]
+name = "stencil-metafiles"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+libvisio-bridge = { path = "../libvisio-bridge" }
