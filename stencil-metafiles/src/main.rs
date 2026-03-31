@@ -1,210 +1,94 @@
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::ffi::{CString, OsString};
+use std::path::PathBuf;
 
 use libvisio_bridge::{Painter, VisioFile};
 
 
-struct LaziestPainter;
-impl Painter for LaziestPainter {
-    fn start_document(&mut self, properties: HashMap<String, String>) {
-        println!("start_document({:?})", properties);
-    }
+const FORBIDDEN_FILENAME_CHARS_SORTED: [char; 9] = [
+    '"', '*', '/', ':', '<', '>', '?', '\\', '|',
+];
 
-    fn end_document(&mut self) {
-        println!("end_document()");
-    }
 
+fn normalize_filename(potential_filename: &str) -> String {
+    let mut ret = String::new();
+    for c in potential_filename.chars() {
+        if c < ' ' || c > '~' {
+            // not printable ASCII
+            ret.push('_');
+            continue;
+        }
+        if FORBIDDEN_FILENAME_CHARS_SORTED.binary_search(&c).is_ok() {
+            // forbidden character
+            ret.push('_');
+            continue;
+        }
+        ret.push(c);
+    }
+    ret
+}
+
+
+struct EmfPainter {
+    output_dir: PathBuf,
+    page_name: String,
+    page_number: usize,
+    emf_on_page_number: usize,
+}
+impl EmfPainter {
+    pub fn new<P: Into<PathBuf>>(output_dir: P) -> Self {
+        Self {
+            output_dir: output_dir.into(),
+            page_name: String::with_capacity(0),
+            page_number: 0,
+            emf_on_page_number: 0,
+        }
+    }
+}
+impl Painter for EmfPainter {
     fn start_page(&mut self, properties: HashMap<String, String>) {
-        println!("start_page({:?})", properties);
+        self.page_number += 1;
+        self.emf_on_page_number = 0;
+        self.page_name = properties.get("draw:name")
+            .cloned()
+            .unwrap_or_else(|| format!("Symbol{}", self.page_number));
     }
 
     fn end_page(&mut self) {
-        println!("end_page()");
-    }
-
-    fn start_master_page(&mut self, properties: HashMap<String, String>) {
-        println!("start_master_page({:?})", properties);
-    }
-
-    fn end_master_page(&mut self) {
-        println!("end_master_page()");
-    }
-
-    fn start_layer(&mut self, properties: HashMap<String, String>) {
-        println!("start_layer({:?})", properties);
-    }
-
-    fn end_layer(&mut self) {
-        println!("end_layer()");
-    }
-
-    fn start_embedded_graphics(&mut self, properties: HashMap<String, String>) {
-        println!("start_embedded_graphics({:?})", properties);
-    }
-
-    fn end_embedded_graphics(&mut self) {
-        println!("end_embedded_graphics()");
-    }
-
-    fn open_group(&mut self, properties: HashMap<String, String>) {
-        println!("open_group({:?})", properties);
-    }
-
-    fn close_group(&mut self) {
-        println!("close_group()");
-    }
-
-    fn start_text_object(&mut self, properties: HashMap<String, String>) {
-        println!("start_text_object({:?})", properties);
-    }
-
-    fn end_text_object(&mut self) {
-        println!("end_text_object()");
-    }
-
-    fn start_table_object(&mut self, properties: HashMap<String, String>) {
-        println!("start_table_object({:?})", properties);
-    }
-
-    fn end_table_object(&mut self) {
-        println!("end_table_object()");
-    }
-
-    fn open_table_row(&mut self, properties: HashMap<String, String>) {
-        println!("open_table_row({:?})", properties);
-    }
-
-    fn close_table_row(&mut self) {
-        println!("close_table_row()");
-    }
-
-    fn open_table_cell(&mut self, properties: HashMap<String, String>) {
-        println!("open_table_cell({:?})", properties);
-    }
-
-    fn close_table_cell(&mut self) {
-        println!("close_table_cell()");
-    }
-
-    fn open_ordered_list_level(&mut self, properties: HashMap<String, String>) {
-        println!("open_ordered_list_level({:?})", properties);
-    }
-
-    fn close_ordered_list_level(&mut self) {
-        println!("close_ordered_list_level()");
-    }
-
-    fn open_unordered_list_level(&mut self, properties: HashMap<String, String>) {
-        println!("open_unordered_list_level({:?})", properties);
-    }
-
-    fn close_unordered_list_level(&mut self) {
-        println!("close_unordered_list_level()");
-    }
-
-    fn open_list_element(&mut self, properties: HashMap<String, String>) {
-        println!("open_list_element({:?})", properties);
-    }
-
-    fn close_list_element(&mut self) {
-        println!("close_list_element()");
-    }
-
-    fn open_paragraph(&mut self, properties: HashMap<String, String>) {
-        println!("open_paragraph({:?})", properties);
-    }
-
-    fn close_paragraph(&mut self) {
-        println!("close_paragraph()");
-    }
-
-    fn open_span(&mut self, properties: HashMap<String, String>) {
-        println!("open_span({:?})", properties);
-    }
-
-    fn close_span(&mut self) {
-        println!("close_span()");
-    }
-
-    fn open_link(&mut self, properties: HashMap<String, String>) {
-        println!("open_link({:?})", properties);
-    }
-
-    fn close_link(&mut self) {
-        println!("close_link()");
-    }
-
-    fn set_document_metadata(&mut self, properties: HashMap<String, String>) {
-        println!("set_document_metadata({:?})", properties);
-    }
-
-    fn define_embedded_font(&mut self, properties: HashMap<String, String>) {
-        println!("define_embedded_font({:?})", properties);
-    }
-
-    fn set_style(&mut self, properties: HashMap<String, String>) {
-        println!("set_style({:?})", properties);
-    }
-
-    fn draw_rectangle(&mut self, properties: HashMap<String, String>) {
-        println!("draw_rectangle({:?})", properties);
-    }
-
-    fn draw_ellipse(&mut self, properties: HashMap<String, String>) {
-        println!("draw_ellipse({:?})", properties);
-    }
-
-    fn draw_polygon(&mut self, properties: HashMap<String, String>) {
-        println!("draw_polygon({:?})", properties);
-    }
-
-    fn draw_polyline(&mut self, properties: HashMap<String, String>) {
-        println!("draw_polyline({:?})", properties);
-    }
-
-    fn draw_path(&mut self, properties: HashMap<String, String>) {
-        println!("draw_path({:?})", properties);
+        self.page_name.clear();
     }
 
     fn draw_graphic_object(&mut self, properties: HashMap<String, String>) {
-        println!("draw_graphic_object({:?})", properties);
-    }
+        let mime_type = properties
+            .get("librevenge:mime-type")
+            .map(|mt| mt.as_str());
+        match mime_type {
+            Some("image/emf") => {
+                let binary_data_b64_opt = properties.get("office:binary-data");
+                let Some(binary_data_b64) = binary_data_b64_opt
+                    else { return };
+                let Ok(binary_data) = STANDARD.decode(binary_data_b64)
+                    else { return };
 
-    fn draw_connector(&mut self, properties: HashMap<String, String>) {
-        println!("draw_connector({:?})", properties);
-    }
+                let emf_filename = format!(
+                    "{}_{}.emf",
+                    normalize_filename(&self.page_name),
+                    self.emf_on_page_number,
+                );
+                self.emf_on_page_number += 1;
 
-    fn insert_covered_table_cell(&mut self, properties: HashMap<String, String>) {
-        println!("insert_covered_table_cell({:?})", properties);
+                let mut emf_path = self.output_dir.clone();
+                emf_path.push(&emf_filename);
+                std::fs::write(&emf_path, &binary_data)
+                    .expect("failed to write EMF");
+            },
+            _ => {},
+        }
     }
-
-    fn insert_field(&mut self, properties: HashMap<String, String>) {
-        println!("insert_field({:?})", properties);
-    }
-
-    fn define_paragraph_style(&mut self, properties: HashMap<String, String>) {
-        println!("define_paragraph_style({:?})", properties);
-    }
-
-    fn define_character_style(&mut self, properties: HashMap<String, String>) {
-        println!("define_character_style({:?})", properties);
-    }
-
-    fn insert_tab(&mut self) {
-        println!("insert_tab()");
-    }
-
-    fn insert_space(&mut self) {
-        println!("insert_space()");
-    }
-
-    fn insert_line_break(&mut self) {
-        println!("insert_line_break()");
-    }
-
-    fn insert_text(&mut self, _string: String) {}
 }
 
 
@@ -226,8 +110,6 @@ fn main() {
 
     let mut visio_file = VisioFile::new(&infile_c)
         .expect("failed to load Visio file");
-    let mut painter: Box<dyn Painter> = Box::new(LaziestPainter);
+    let mut painter: Box<dyn Painter> = Box::new(EmfPainter::new(&args[2]));
     visio_file.parse_stencils(&mut painter);
-
-    // TODO: extraction logic
 }
