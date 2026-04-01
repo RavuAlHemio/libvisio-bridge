@@ -3,10 +3,11 @@ use base64::engine::general_purpose::STANDARD;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
-use std::ffi::{CString, OsString};
+use std::ffi::OsString;
+use std::fs::File;
 use std::path::PathBuf;
 
-use libvisio_bridge::Painter;
+use libvisio_bridge::{InputStream, Painter};
 
 
 const FORBIDDEN_FILENAME_CHARS_SORTED: [char; 9] = [
@@ -105,11 +106,12 @@ fn main() {
         return;
     }
 
-    let infile_c = CString::new(args[1].as_encoded_bytes())
-        .expect("input file contains NUL bytes");
+    let in_file = File::open(&args[1])
+        .expect("failed to open input file");
+    let in_reader = libvisio_bridge::ReadStream::new(in_file);
+    let mut in_reader_box: Box<dyn InputStream> = Box::new(in_reader);
 
-    let mut visio_file = VisioFile::new(&infile_c)
-        .expect("failed to load Visio file");
     let mut painter: Box<dyn Painter> = Box::new(EmfPainter::new(&args[2]));
-    visio_file.parse_stencils(&mut painter);
+
+    libvisio_bridge::parse_stencils(&mut in_reader_box, &mut painter);
 }
