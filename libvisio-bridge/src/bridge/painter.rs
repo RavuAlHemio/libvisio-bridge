@@ -1,8 +1,64 @@
 use std::ffi::{CStr, c_char, c_void};
 use std::collections::HashMap;
 
-use crate::bridge::Painter;
 use crate::glue;
+
+
+pub trait Painter {
+    fn start_document(&mut self, _properties: HashMap<String, String>) {}
+    fn end_document(&mut self) {}
+    fn start_page(&mut self, _properties: HashMap<String, String>) {}
+    fn end_page(&mut self) {}
+    fn start_master_page(&mut self, _properties: HashMap<String, String>) {}
+    fn end_master_page(&mut self) {}
+    fn start_layer(&mut self, _properties: HashMap<String, String>) {}
+    fn end_layer(&mut self) {}
+    fn start_embedded_graphics(&mut self, _properties: HashMap<String, String>) {}
+    fn end_embedded_graphics(&mut self) {}
+    fn open_group(&mut self, _properties: HashMap<String, String>) {}
+    fn close_group(&mut self) {}
+    fn start_text_object(&mut self, _properties: HashMap<String, String>) {}
+    fn end_text_object(&mut self) {}
+    fn start_table_object(&mut self, _properties: HashMap<String, String>) {}
+    fn end_table_object(&mut self) {}
+    fn open_table_row(&mut self, _properties: HashMap<String, String>) {}
+    fn close_table_row(&mut self) {}
+    fn open_table_cell(&mut self, _properties: HashMap<String, String>) {}
+    fn close_table_cell(&mut self) {}
+    fn open_ordered_list_level(&mut self, _properties: HashMap<String, String>) {}
+    fn close_ordered_list_level(&mut self) {}
+    fn open_unordered_list_level(&mut self, _properties: HashMap<String, String>) {}
+    fn close_unordered_list_level(&mut self) {}
+    fn open_list_element(&mut self, _properties: HashMap<String, String>) {}
+    fn close_list_element(&mut self) {}
+    fn open_paragraph(&mut self, _properties: HashMap<String, String>) {}
+    fn close_paragraph(&mut self) {}
+    fn open_span(&mut self, _properties: HashMap<String, String>) {}
+    fn close_span(&mut self) {}
+    fn open_link(&mut self, _properties: HashMap<String, String>) {}
+    fn close_link(&mut self) {}
+
+    fn set_document_metadata(&mut self, _properties: HashMap<String, String>) {}
+    fn define_embedded_font(&mut self, _properties: HashMap<String, String>) {}
+    fn set_style(&mut self, _properties: HashMap<String, String>) {}
+    fn draw_rectangle(&mut self, _properties: HashMap<String, String>) {}
+    fn draw_ellipse(&mut self, _properties: HashMap<String, String>) {}
+    fn draw_polygon(&mut self, _properties: HashMap<String, String>) {}
+    fn draw_polyline(&mut self, _properties: HashMap<String, String>) {}
+    fn draw_path(&mut self, _properties: HashMap<String, String>) {}
+    fn draw_graphic_object(&mut self, _properties: HashMap<String, String>) {}
+    fn draw_connector(&mut self, _properties: HashMap<String, String>) {}
+    fn insert_covered_table_cell(&mut self, _properties: HashMap<String, String>) {}
+    fn insert_field(&mut self, _properties: HashMap<String, String>) {}
+    fn define_paragraph_style(&mut self, _properties: HashMap<String, String>) {}
+    fn define_character_style(&mut self, _properties: HashMap<String, String>) {}
+
+    fn insert_tab(&mut self) {}
+    fn insert_space(&mut self) {}
+    fn insert_line_break(&mut self) {}
+
+    fn insert_text(&mut self, _string: String) {}
+}
 
 
 fn collect_prop_list(prop_list: *const glue::visio_glue_property_list) -> HashMap<String, String> {
@@ -86,6 +142,19 @@ macro_rules! impl_bridge_str {
     };
 }
 
+extern "C" fn destroy(user_ptr: *mut c_void) {
+    let painter_ptr = user_ptr as *mut Box<dyn Painter>;
+
+    // re-box that (yay double-boxing)
+    let painter_box = unsafe { Box::from_raw(painter_ptr) };
+
+    // drop it, which drops the Painter
+    drop(painter_box);
+}
+
+extern "C" fn noop_destroy(_user_ptr: *mut c_void) {
+}
+
 
 impl_bridge_pl!(start_document);
 impl_bridge!(end_document);
@@ -141,8 +210,9 @@ impl_bridge!(insert_line_break);
 
 impl_bridge_str!(insert_text);
 
-pub fn make_rust_painter() -> glue::visio_glue_painter {
-    glue::visio_glue_painter {
+pub fn make_rust_painter_funcs(drop_on_destroy: bool) -> glue::visio_glue_painter_funcs {
+    glue::visio_glue_painter_funcs {
+        destroy: if drop_on_destroy { Some(destroy) } else { Some(noop_destroy) },
         start_document: Some(start_document),
         end_document: Some(end_document),
         start_page: Some(start_page),

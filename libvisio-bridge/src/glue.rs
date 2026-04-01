@@ -1,7 +1,7 @@
 #![allow(non_camel_case_types)]
 
 
-use std::ffi::{c_char, c_void};
+use std::ffi::{c_char, c_int, c_long, c_uint, c_ulong, c_void};
 
 
 macro_rules! opaque_type {
@@ -15,6 +15,7 @@ macro_rules! opaque_type {
 }
 
 opaque_type!(visio_glue_input_stream);
+opaque_type!(visio_glue_painter);
 opaque_type!(visio_glue_property_list);
 opaque_type!(visio_glue_property_list_iterator);
 
@@ -23,7 +24,9 @@ pub type visio_glue_func_pl = Option<extern "C" fn(user_ptr: *mut c_void, prop_l
 pub type visio_glue_func_str = Option<extern "C" fn(user_ptr: *mut c_void, text: *const c_char, length: usize)>;
 
 #[repr(C)]
-pub struct visio_glue_painter {
+pub struct visio_glue_painter_funcs {
+    pub destroy: visio_glue_func,
+
     pub start_document: visio_glue_func_pl,
     pub end_document: visio_glue_func,
     pub start_page: visio_glue_func_pl,
@@ -80,17 +83,43 @@ pub struct visio_glue_painter {
 }
 
 #[repr(C)]
+pub enum visio_glue_seek_type {
+    Cur,
+    Start,
+    End,
+}
+
+#[repr(C)]
+pub struct visio_glue_input_stream_funcs {
+    pub destroy: Option<extern "C" fn(user_ptr: *mut c_void)>,
+
+    pub is_structured: Option<extern "C" fn(user_ptr: *mut c_void) -> bool>,
+    pub sub_stream_count: Option<extern "C" fn(user_ptr: *mut c_void) -> c_uint>,
+    pub sub_stream_name: Option<extern "C" fn(user_ptr: *mut c_void, stream_id: c_uint) -> *const c_char>,
+    pub sub_stream_exists: Option<extern "C" fn(user_ptr: *mut c_void, name: *const c_char) -> bool>,
+    pub sub_stream_by_id: Option<extern "C" fn(user_ptr: *mut c_void, stream_id: c_uint) -> *mut visio_glue_input_stream>,
+    pub sub_stream_by_name: Option<extern "C" fn(user_ptr: *mut c_void, name: *const c_char) -> *mut visio_glue_input_stream>,
+    pub read: Option<extern "C" fn(user_ptr: *mut c_void, num_bytes: c_ulong, num_bytes_read: *mut c_ulong) -> *const u8>,
+    pub seek: Option<extern "C" fn(user_ptr: *mut c_void, offset: c_long, seek_type: /* visio_glue_seek_type */ c_int) -> c_int>,
+    pub tell: Option<extern "C" fn(user_ptr: *mut c_void) -> c_long>,
+    pub is_end: Option<extern "C" fn(user_ptr: *mut c_void) -> bool>,
+}
+
+#[repr(C)]
 pub struct visio_glue_property_value {
     pub value: *mut c_char,
 }
 
 unsafe extern "C" {
-    pub unsafe fn visio_glue_open_file(path: *const c_char) -> *mut visio_glue_input_stream;
-    pub unsafe fn visio_glue_close_file(stream: *mut visio_glue_input_stream);
+    pub unsafe fn visio_glue_new_input_stream(funcs: visio_glue_input_stream_funcs, user_ptr: *mut c_void) -> *mut visio_glue_input_stream;
+    pub unsafe fn visio_glue_new_painter(funcs: visio_glue_painter_funcs, user_ptr: *mut c_void) -> *mut visio_glue_painter;
+
+    pub unsafe fn visio_glue_input_stream_free(stream: *mut visio_glue_input_stream);
+    pub unsafe fn visio_glue_painter_free(painter: *mut visio_glue_painter);
 
     pub unsafe fn visio_glue_document_is_supported(stream: *mut visio_glue_input_stream) -> bool;
-    pub unsafe fn visio_glue_document_parse(stream: *mut visio_glue_input_stream, painter: *mut visio_glue_painter, user_ptr: *mut c_void) -> bool;
-    pub unsafe fn visio_glue_document_parse_stencils(stream: *mut visio_glue_input_stream, painter: *mut visio_glue_painter, user_ptr: *mut c_void) -> bool;
+    pub unsafe fn visio_glue_document_parse(stream: *mut visio_glue_input_stream, painter: *mut visio_glue_painter) -> bool;
+    pub unsafe fn visio_glue_document_parse_stencils(stream: *mut visio_glue_input_stream, painter: *mut visio_glue_painter) -> bool;
 
     pub unsafe fn visio_glue_property_list_iterate(list: *const visio_glue_property_list) -> *mut visio_glue_property_list_iterator;
     pub unsafe fn visio_glue_property_list_iterator_free(iterator: *mut visio_glue_property_list_iterator);

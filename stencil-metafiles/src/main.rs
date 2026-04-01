@@ -6,7 +6,7 @@ use std::env;
 use std::ffi::{CString, OsString};
 use std::path::PathBuf;
 
-use libvisio_bridge::{Painter, VisioFile};
+use libvisio_bridge::Painter;
 
 
 const FORBIDDEN_FILENAME_CHARS_SORTED: [char; 9] = [
