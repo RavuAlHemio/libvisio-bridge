@@ -294,7 +294,7 @@ visio_glue_property_list_iterator_value(visio_glue_property_list_iterator *itera
     const RVNGProperty *prop = (*prop_iterator)();
     if (prop == nullptr) {
         auto value = visio_glue_property_value {
-            value: nullptr
+            nullptr
         };
         return value;
     }
@@ -304,7 +304,7 @@ visio_glue_property_list_iterator_value(visio_glue_property_list_iterator *itera
         ? nullptr
         : strdup(cstr);
     auto value = visio_glue_property_value {
-        value: dup_cstr
+        dup_cstr
     };
     return value;
 }
