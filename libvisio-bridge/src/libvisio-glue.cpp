@@ -210,19 +210,19 @@ public:
     }
 };
 
-visio_glue_input_stream *
+extern "C" visio_glue_input_stream *
 visio_glue_new_input_stream(visio_glue_input_stream_funcs funcs, void *user_ptr) {
     auto input_stream = new CInputStream(funcs, user_ptr);
     return reinterpret_cast<visio_glue_input_stream *>(input_stream);
 }
 
-visio_glue_painter *
+extern "C" visio_glue_painter *
 visio_glue_new_painter(visio_glue_painter_funcs funcs, void *user_ptr) {
     auto painter = new CDrawingInterface(funcs, user_ptr);
     return reinterpret_cast<visio_glue_painter *>(painter);
 }
 
-void
+extern "C" void
 visio_glue_input_stream_free(visio_glue_input_stream *stream) {
     if (stream == nullptr) {
         return;
@@ -231,7 +231,7 @@ visio_glue_input_stream_free(visio_glue_input_stream *stream) {
     delete input_stream;
 }
 
-void
+extern "C" void
 visio_glue_painter_free(visio_glue_painter *painter) {
     if (painter == nullptr) {
         return;
