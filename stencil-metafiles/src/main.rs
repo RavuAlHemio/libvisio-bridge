@@ -1,11 +1,12 @@
-use base64::Engine;
-use base64::engine::general_purpose::STANDARD;
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::env;
 use std::ffi::OsString;
 use std::fs::File;
 use std::path::PathBuf;
+
+use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use tracing::debug;
 
 use libvisio_bridge::{InputStream, Painter};
