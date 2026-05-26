@@ -307,7 +307,7 @@ struct EmfPainter {
     output_dir: PathBuf,
     page_name: String,
     page_number: usize,
-    emf_on_page_number: usize,
+    graphic_on_page_number: usize,
 }
 impl EmfPainter {
     pub fn new<P: Into<PathBuf>>(output_dir: P) -> Self {
@@ -315,14 +315,14 @@ impl EmfPainter {
             output_dir: output_dir.into(),
             page_name: String::with_capacity(0),
             page_number: 0,
-            emf_on_page_number: 0,
+            graphic_on_page_number: 0,
         }
     }
 }
 impl Painter for EmfPainter {
     fn start_page(&mut self, properties: HashMap<String, String>) {
         self.page_number += 1;
-        self.emf_on_page_number = 0;
+        self.graphic_on_page_number = 0;
         self.page_name = properties.get("draw:name")
             .cloned()
             .unwrap_or_else(|| format!("Symbol{}", self.page_number));
@@ -337,24 +337,30 @@ impl Painter for EmfPainter {
             .get("librevenge:mime-type")
             .map(|mt| mt.as_str());
         match mime_type {
-            Some("image/emf") => {
+            Some("image/emf")|Some("image/png") => {
                 let binary_data_b64_opt = properties.get("office:binary-data");
                 let Some(binary_data_b64) = binary_data_b64_opt
                     else { return };
                 let Ok(binary_data) = STANDARD.decode(binary_data_b64)
                     else { return };
 
-                let emf_filename = format!(
-                    "{}_{}.emf",
+                let extension = match mime_type {
+                    Some("image/emf") => "emf",
+                    Some("image/png") => "png",
+                    _ => unreachable!(),
+                };
+                let output_filename = format!(
+                    "{}_{}.{}",
                     normalize_filename(&self.page_name),
-                    self.emf_on_page_number,
+                    self.graphic_on_page_number,
+                    extension,
                 );
-                self.emf_on_page_number += 1;
+                self.graphic_on_page_number += 1;
 
-                let mut emf_path = self.output_dir.clone();
-                emf_path.push(&emf_filename);
-                std::fs::write(&emf_path, &binary_data)
-                    .expect("failed to write EMF");
+                let mut output_path = self.output_dir.clone();
+                output_path.push(&output_filename);
+                std::fs::write(&output_path, &binary_data)
+                    .expect("failed to write graphic");
             },
             _ => {},
         }
